@@ -1,46 +1,84 @@
+from pathlib import Path
+
 import cv2
-import mediapipe as mp
 
-mp_face_mesh = mp.solutions.face_mesh
+# Usando a Tasks API do MediaPipe (requer 'face_landmarker.task' disponível no ambiente)
+from mediapipe.tasks import python as mp_tasks
+from mediapipe.tasks.python import vision as mp_vision
+from mediapipe.tasks.python.vision.core import image as mp_image_lib
 
-# Inicializa o MediaPipe Face Mesh com as configurações desejadas
-face_mesh = mp_face_mesh.FaceMesh(
-    static_image_mode=False, # Permite o rastreamento contínuo em vídeo
-    max_num_faces=1, # Número máximo de faces a serem detectadas
-    refine_landmarks=True, # Refinar os pontos de referência para incluir detalhes como a íris
-    min_detection_confidence=0.5, # Confiança mínima para a detecção de faces
-    min_tracking_confidence=0.5 # Confiança mínima para o rastreamento de pontos de referência
+
+def resolve_existing_path(*candidates: Path) -> Path:
+    for candidate in candidates:
+        if candidate and candidate.exists():
+            return candidate.resolve()
+    raise FileNotFoundError(
+        "Não foi possível encontrar o arquivo esperado. "
+        "Coloque 'face_landmarker.task' ao lado de 'src/' ou informe um caminho válido."
+    )
+
+
+script_dir = Path(__file__).resolve().parent
+project_root = script_dir.parent
+
+model_path = resolve_existing_path(
+    script_dir / "face_landmarker.task",
+    project_root / "face_landmarker.task",
 )
 
-video = cv2.VideoCapture("video.mp4")
+video_path = resolve_existing_path(
+    script_dir / "video.mov",
+    project_root / "video.mov",
+)
+
+# Inicializa o Face Landmarker (Tasks API)
+base_options = mp_tasks.BaseOptions(model_asset_path=str(model_path))
+options = mp_vision.FaceLandmarkerOptions(
+    base_options=base_options,
+    running_mode=mp_vision.RunningMode.VIDEO,
+    num_faces=1,
+    min_face_detection_confidence=0.5,
+    min_tracking_confidence=0.5,
+)
+face_landmarker = mp_vision.FaceLandmarker.create_from_options(options)
+
+# Abre o vídeo (mesma entrada do código anterior)
+video = cv2.VideoCapture(str(video_path))
+frame_idx = 0
+fps = video.get(cv2.CAP_PROP_FPS) or 30.0
 
 while True:
     ret, frame = video.read()
-
-    # Se não houver mais frames para ler, sai do loop
-    if (not ret):
+    if not ret:
         break
-    
-    # Converte o frame de BGR para RGB, pois o MediaPipe espera imagens no formato RGB
+
+    # Converte BGR -> RGB para entrada do modelo
     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-    # Processa o frame para detectar os pontos de referência da face
-    results = face_mesh.process(rgb_frame)
+    # Constrói Image compatível com Tasks API
+    mp_image = mp_image_lib.Image(mp_image_lib.ImageFormat.SRGB, rgb_frame)
 
-    if (results.multi_face_landmarks):
-        # Desenha os pontos de referência da face no frame original
-        for face_landmarks in results.multi_face_landmarks:
-            mp.solutions.drawing_utils.draw_landmarks(
-                frame,
-                face_landmarks,
-                mp_face_mesh.FACE_CONNECTIONS,
-                mp.solutions.drawing_styles.get_default_face_mesh_tesselation_style(),
-                mp.solutions.drawing_styles.get_default_face_mesh_contour_style()
-            )
+    # Detecta landmarks no modo de vídeo — fornece timestamp em ms
+    timestamp_ms = int(frame_idx * (1000.0 / fps))
+    frame_idx += 1
+    result = face_landmarker.detect_for_video(mp_image, timestamp_ms)
 
+    # A saída pode ter landmarks por face; desenhar landmarks simples como pontos na imagem
+    # Estrutura esperada: result.face_landmarks é uma lista (uma entrada por face) contendo landmarks com 'x' e 'y' normalizados
+    if hasattr(result, 'face_landmarks') and result.face_landmarks:
+        h, w, _ = frame.shape
+        for face in result.face_landmarks:
+            # face é uma sequence de landmarks
+            for lm in face:
+                # cada lm tem .x e .y normalizados (0..1)
+                x_px = int(lm.x * w)
+                y_px = int(lm.y * h)
+                cv2.circle(frame, (x_px, y_px), 1, (0, 255, 0), -1)
+
+    # Mostra o frame com os pontos desenhados
     cv2.imshow("Face", frame)
 
-    if (cv2.waitKey(30) == 27):
+    if cv2.waitKey(30) == 27:
         break
 
 video.release()
