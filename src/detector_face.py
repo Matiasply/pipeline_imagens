@@ -1,4 +1,6 @@
 from pathlib import Path
+import shutil
+import tempfile
 
 import cv2
 
@@ -18,6 +20,15 @@ def resolve_existing_path(*candidates: Path) -> Path:
     )
 
 
+def stage_ascii_copy(source: Path) -> Path:
+    staging_dir = Path(tempfile.gettempdir()) / "pipeline_imagens"
+    staging_dir.mkdir(parents=True, exist_ok=True)
+    staged_path = staging_dir / source.name
+    if not staged_path.exists() or staged_path.stat().st_mtime < source.stat().st_mtime:
+        shutil.copy2(source, staged_path)
+    return staged_path
+
+
 script_dir = Path(__file__).resolve().parent
 project_root = script_dir.parent
 
@@ -25,11 +36,13 @@ model_path = resolve_existing_path(
     script_dir / "face_landmarker.task",
     project_root / "face_landmarker.task",
 )
+model_path = stage_ascii_copy(model_path)
 
 video_path = resolve_existing_path(
     script_dir / "video.mov",
     project_root / "video.mov",
 )
+video_path = stage_ascii_copy(video_path)
 
 # Inicializa o Face Landmarker (Tasks API)
 base_options = mp_tasks.BaseOptions(model_asset_path=str(model_path))
