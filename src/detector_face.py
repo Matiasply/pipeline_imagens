@@ -47,6 +47,9 @@ video_path = resolve_existing_path(
 )
 video_path = stage_ascii_copy(video_path)
 
+output_dir = project_root / "dataset" / "video001"
+output_dir.mkdir(parents=True, exist_ok=True)
+
 # Inicializa o Face Landmarker (Tasks API)
 base_options = mp_tasks.BaseOptions(model_asset_path=str(model_path))
 options = mp_vision.FaceLandmarkerOptions(
@@ -97,6 +100,20 @@ while True:
                 lips_crop_bgr = cv2.cvtColor(lips_crop_rgb, cv2.COLOR_RGB2BGR)
                 lips_crop_gray = cv2.cvtColor(lips_crop_bgr, cv2.COLOR_BGR2GRAY)
                 cv2.imshow("Lips", lips_crop_gray)
+
+    # Salva o recorte dos lábios em tons de cinza na pasta de saída
+    lips_output = None
+    if hasattr(result, 'face_landmarks') and result.face_landmarks:
+        for face in result.face_landmarks:
+            lips_crop_rgb = crop_lips(rgb_frame, face)
+            if lips_crop_rgb is not None:
+                lips_crop_bgr = cv2.cvtColor(lips_crop_rgb, cv2.COLOR_RGB2BGR)
+                lips_output = cv2.cvtColor(lips_crop_bgr, cv2.COLOR_BGR2GRAY)
+                break
+
+    if lips_output is not None:
+        frame_filename = output_dir / f"frame_{frame_idx:06d}.jpg"
+        cv2.imwrite(str(frame_filename), lips_output)
 
     # Mostra o frame com os pontos desenhados
     #cv2.imshow("Face", frame)
