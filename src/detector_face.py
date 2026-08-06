@@ -95,7 +95,8 @@ while True:
             if lips_crop_rgb is not None:
                 # OpenCV espera BGR para exibição, converte de RGB -> BGR
                 lips_crop_bgr = cv2.cvtColor(lips_crop_rgb, cv2.COLOR_RGB2BGR)
-                cv2.imshow("Lips", lips_crop_bgr)
+                lips_crop_gray = cv2.cvtColor(lips_crop_bgr, cv2.COLOR_BGR2GRAY)
+                cv2.imshow("Lips", lips_crop_gray)
 
     # Mostra o frame com os pontos desenhados
     #cv2.imshow("Face", frame)
