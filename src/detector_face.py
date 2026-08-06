@@ -3,6 +3,7 @@ import shutil
 import tempfile
 
 import cv2
+from detectar_labios import crop_lips
 
 # Usando a Tasks API do MediaPipe (requer 'face_landmarker.task' disponível no ambiente)
 from mediapipe.tasks import python as mp_tasks
@@ -27,6 +28,8 @@ def stage_ascii_copy(source: Path) -> Path:
     if not staged_path.exists() or staged_path.stat().st_mtime < source.stat().st_mtime:
         shutil.copy2(source, staged_path)
     return staged_path
+
+
 
 
 script_dir = Path(__file__).resolve().parent
@@ -87,9 +90,15 @@ while True:
                 x_px = int(lm.x * w)
                 y_px = int(lm.y * h)
                 cv2.circle(frame, (x_px, y_px), 1, (0, 255, 0), -1)
+            # tenta recortar os lábios a partir dos landmarks detectados
+            lips_crop_rgb = crop_lips(rgb_frame, face)
+            if lips_crop_rgb is not None:
+                # OpenCV espera BGR para exibição, converte de RGB -> BGR
+                lips_crop_bgr = cv2.cvtColor(lips_crop_rgb, cv2.COLOR_RGB2BGR)
+                cv2.imshow("Lips", lips_crop_bgr)
 
     # Mostra o frame com os pontos desenhados
-    cv2.imshow("Face", frame)
+    #cv2.imshow("Face", frame)
 
     if cv2.waitKey(30) == 27:
         break
