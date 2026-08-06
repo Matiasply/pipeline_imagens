@@ -4,6 +4,7 @@ import tempfile
 
 import cv2
 from detectar_labios import crop_lips
+from preprocessamento import preprocessar
 
 # Usando a Tasks API do MediaPipe (requer 'face_landmarker.task' disponível no ambiente)
 from mediapipe.tasks import python as mp_tasks
@@ -99,6 +100,7 @@ while True:
                 # OpenCV espera BGR para exibição, converte de RGB -> BGR
                 lips_crop_bgr = cv2.cvtColor(lips_crop_rgb, cv2.COLOR_RGB2BGR)
                 lips_crop_gray = cv2.cvtColor(lips_crop_bgr, cv2.COLOR_BGR2GRAY)
+                lips_crop_gray = preprocessar(lips_crop_gray)  # Aplica pré-processamento
                 cv2.imshow("Lips", lips_crop_gray)
 
     # Salva o recorte dos lábios em tons de cinza na pasta de saída
@@ -109,6 +111,7 @@ while True:
             if lips_crop_rgb is not None:
                 lips_crop_bgr = cv2.cvtColor(lips_crop_rgb, cv2.COLOR_RGB2BGR)
                 lips_output = cv2.cvtColor(lips_crop_bgr, cv2.COLOR_BGR2GRAY)
+                lips_output = preprocessar(lips_output)
                 break
 
     if lips_output is not None:
