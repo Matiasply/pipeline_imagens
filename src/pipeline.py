@@ -8,6 +8,7 @@ from detector_face import (
     detectar_face,
 )
 from detectar_labios import crop_lips
+from preprocessamento import preprocessar
 
 
 def main():
@@ -39,6 +40,9 @@ def main():
     frame_idx = 0
     fps = video.get(cv2.CAP_PROP_FPS) or 30.0
 
+    # VideoWriter para salvar vídeo processado (inicializado no primeiro frame processado)
+    video_writer = None
+
     # Loop principal de processamento
     while True:
         ret, frame = video.read()
@@ -52,7 +56,8 @@ def main():
         timestamp_ms = int(frame_idx * (1000.0 / fps))
         result = detectar_face(face_landmarker, rgb_frame, timestamp_ms)
 
-        # Processa e exibe landmarks
+        # Processa e exibe landmarks e recortes de lábios
+        lips_output = None
         if result:
             h, w, _ = frame.shape
             for face in result.face_landmarks:
@@ -65,22 +70,40 @@ def main():
                 # Recorta os lábios
                 lips_crop_rgb = crop_lips(rgb_frame, face)
                 if lips_crop_rgb is not None:
+                    # Converte para BGR para compatibilidade com o módulo de pré-processamento
                     lips_crop_bgr = cv2.cvtColor(lips_crop_rgb, cv2.COLOR_RGB2BGR)
-                    cv2.imshow("Lips", lips_crop_bgr)
 
-        # Salva o recorte dos lábios na pasta de saída
-        lips_output = None
-        if result:
-            for face in result.face_landmarks:
-                lips_crop_rgb = crop_lips(rgb_frame, face)
-                if lips_crop_rgb is not None:
-                    lips_crop_bgr = cv2.cvtColor(lips_crop_rgb, cv2.COLOR_RGB2BGR)
-                    lips_output = lips_crop_bgr
+                    # Aplica pré-processamento (clahe, denoise, suavização, normalização)
+                    processed = preprocessar(lips_crop_bgr)
+
+                    # Exibe o resultado processado
+                    cv2.imshow("Lips", processed)
+
+                    lips_output = processed
                     break
 
+        # Salva o recorte dos lábios na pasta de saída e escreve no vídeo processado
         if lips_output is not None:
             frame_filename = output_dir / f"frame_{frame_idx:06d}.jpg"
             cv2.imwrite(str(frame_filename), lips_output)
+
+            # Inicializa VideoWriter quando tivermos o primeiro recorte
+            if video_writer is None:
+                h_crop, w_crop = lips_output.shape[:2]
+                # VideoWriter espera (width, height)
+                video_writer = cv2.VideoWriter(
+                    str(output_dir / "processed.mp4"),
+                    cv2.VideoWriter_fourcc(*"mp4v"),
+                    fps,
+                    (w_crop, h_crop),
+                )
+
+            if video_writer is not None and video_writer.isOpened():
+                write_frame = lips_output
+                # Se for grayscale, converte para BGR antes de escrever
+                if len(write_frame.shape) == 2:
+                    write_frame = cv2.cvtColor(write_frame, cv2.COLOR_GRAY2BGR)
+                video_writer.write(write_frame)
 
         frame_idx += 1
 
@@ -88,6 +111,8 @@ def main():
             break
 
     video.release()
+    if video_writer is not None:
+        video_writer.release()
     cv2.destroyAllWindows()
 
 
