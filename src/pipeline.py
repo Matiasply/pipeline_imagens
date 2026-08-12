@@ -29,7 +29,7 @@ def main():
     )
     video_path = stage_ascii_copy(video_path)
 
-    output_dir = project_root / "dataset" / "video001"
+    output_dir = project_root / "result" / "video001"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Inicializa o Face Landmarker

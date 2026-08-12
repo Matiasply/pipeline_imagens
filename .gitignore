@@ -8,6 +8,7 @@ __pycache__/
 
 # Ignora a pasta gerada pelo algoritmo
 dataset/
+result/
 
 # Distribution / packaging
 .Python
