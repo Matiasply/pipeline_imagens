@@ -1,0 +1,3 @@
+[submodule "third_party/LipNet-PyTorch"]
+	path = third_party/LipNet-PyTorch
+	url = https://github.com/VIPL-Audio-Visual-Speech-Understanding/LipNet-PyTorch.git
