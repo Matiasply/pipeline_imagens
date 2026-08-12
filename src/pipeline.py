@@ -16,6 +16,37 @@ from detectar_labios import crop_lips
 from lipnet import load_lipnet_model, predict_text_from_video
 from preprocessamento import preprocessar
 
+# ==============================================================================
+# DICIONÁRIOS DE DECODIFICAÇÃO DO GRID CORPUS
+# ==============================================================================
+GRID_COMMANDS = {"b": "BIN", "l": "LAY", "p": "PLACE", "s": "SET"}
+GRID_COLORS = {"b": "BLUE", "g": "GREEN", "r": "RED", "w": "WHITE"}
+GRID_PREPOSITIONS = {"a": "AT", "b": "BY", "i": "IN", "w": "WITH"}
+GRID_DIGITS = {
+    "0": "ZERO", "1": "ONE", "2": "TWO", "3": "THREE", "4": "FOUR",
+    "5": "FIVE", "6": "SIX", "7": "SEVEN", "8": "EIGHT", "9": "NINE",
+    "z": "ZERO"
+}
+GRID_ADVERBS = {"a": "AGAIN", "n": "NOW", "p": "PLEASE", "s": "SOON"}
+
+
+def decode_grid_utterance(code: str) -> str:
+    """
+    Decodifica códigos de 6 caracteres do GRID (ex: 'bbat9p') 
+    na frase correspondente de 6 palavras (ex: 'BIN BLUE AT T NINE PLEASE').
+    """
+    code = code.lower().strip()
+    if len(code) != 6:
+        return code.upper()
+
+    cmd = GRID_COMMANDS.get(code[0], code[0].upper())
+    color = GRID_COLORS.get(code[1], code[1].upper())
+    prep = GRID_PREPOSITIONS.get(code[2], code[2].upper())
+    letter = code[3].upper()
+    digit = GRID_DIGITS.get(code[4], code[4].upper())
+    adv = GRID_ADVERBS.get(code[5], code[5].upper())
+
+    return f"{cmd} {color} {prep} {letter} {digit} {adv}"
 
 def normalize_sentence_text(value: str) -> str:
     text = str(value).strip().upper()
@@ -71,11 +102,17 @@ def compute_wer_cer(reference: str, hypothesis: str) -> dict:
 def sentence_reference_for_video(video_path: Path) -> str:
     stem = video_path.stem
     parts = [part for part in stem.split("_") if part]
+    
+    code = stem
     if len(parts) >= 3:
         candidate = parts[-1]
         if candidate and candidate.lower() not in {"l", "p"}:
-            return candidate.upper()
-    return stem.upper()
+            code = candidate
+    elif len(parts) == 1:
+        code = parts[0]
+
+    # Transforma 'bbat9p' -> 'BIN BLUE AT T NINE PLEASE'
+    return decode_grid_utterance(code)
 
 
 def _build_face_processed_video(video_path: Path, output_dir: Path, model_path: Path) -> Path:
