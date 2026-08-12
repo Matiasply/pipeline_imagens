@@ -9,6 +9,7 @@ cv2, mediapipe, numpy, pytorch e lipnet (submodulo)
 
 Foi utilizado o dataset GRID Corpus, nessa estrutura:
 
+```
 dataset/
 ├── lombardgrid_alignment/
 │   └── lombardgrid/
@@ -22,6 +23,7 @@ dataset/
 └── lombardgrid_json/
     └── lombardgrid/
         └── json/
+```
 
 O pipeline irá processar os vídeos e armazená-los em output_dir, após processar todos vídeos irá analisar o vídeo original e o vídeo processado com o modelo LipNet, armazenando as avaliações em output_dir/evaluation. O comando para executá-lo tem o seguinte formato: (--limit 0 para executar todos vídeos)
 
